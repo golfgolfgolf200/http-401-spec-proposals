@@ -1,0 +1,25 @@
+{
+  "name": "@x401/mcp-proxy",
+  "version": "1.0.0",
+  "description": "Zero-trust x401 cryptographic delegation and boundary proxy for Model Context Protocol (MCP) servers",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "bin": {
+    "x401-mcp-proxy": "dist/cli.js"
+  },
+  "author": "Josh Hart <contact@x401.tech>",
+  "license": "Apache-2.0",
+  "scripts": {
+    "build": "tsc",
+    "test": "node --test test/**/*.test.js"
+  },
+  "dependencies": {
+    "@x401/verifier": "^1.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.5.0"
+  }
+}

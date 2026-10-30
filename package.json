@@ -1,0 +1,15 @@
+{
+  "name": "x401-monorepo",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "workspaces": [
+    "packages/*"
+  ],
+  "scripts": {
+    "build:all": "npm run build --workspace=@x401/verifier && npm run build --workspace=@x401/edge-gateway",
+    "test:verifier": "npm run test --workspace=@x401/verifier",
+    "test:e2e": "npm run test:e2e --workspace=@x401/edge-gateway"
+  },
+  "license": "Apache-2.0"
+}

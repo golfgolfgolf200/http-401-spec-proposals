@@ -1,0 +1,11 @@
+{
+  "name": "@x401/spec",
+  "version": "1.0.0",
+  "description": "Formal schemas and RFC specifications for x401",
+  "type": "module",
+  "files": [
+    "schemas",
+    "SPEC.md"
+  ],
+  "license": "Apache-2.0"
+}

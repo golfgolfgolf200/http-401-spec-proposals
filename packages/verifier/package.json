@@ -1,0 +1,25 @@
+{
+  "name": "@x401/verifier",
+  "version": "1.0.0",
+  "description": "Zero-dependency RFC 8785 and Web Crypto verifier and minter for x401 delegation tickets",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "type": "module",
+  "scripts": {
+    "build": "tsc",
+    "test": "node --loader ts-node/esm --test test/verifier.test.ts",
+    "mint": "node --loader ts-node/esm scripts/mint-cli.ts"
+  },
+  "keywords": [
+    "x401",
+    "mcp",
+    "security",
+    "webcrypto"
+  ],
+  "license": "Apache-2.0",
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.5.0"
+  }
+}

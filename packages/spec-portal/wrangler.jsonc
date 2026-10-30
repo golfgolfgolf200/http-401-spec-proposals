@@ -1,0 +1,16 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "x401-spec-portal",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-10-01",
+  "routes": [
+    {
+      "pattern": "x401.tech/*",
+      "zone_name": "x401.tech"
+    },
+    {
+      "pattern": "www.x401.tech/*",
+      "zone_name": "x401.tech"
+    }
+  ]
+}

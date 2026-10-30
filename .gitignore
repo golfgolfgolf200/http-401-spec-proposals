@@ -1,0 +1,87 @@
+# ==========================================
+# Dependencies & Package Managers
+# ==========================================
+node_modules/
+.pnp
+.pnp.js
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# ==========================================
+# Build Outputs & Compilers
+# ==========================================
+dist/
+build/
+out/
+*.tsbuildinfo
+.turbo/
+
+# ==========================================
+# Cloudflare Workers & Wrangler Runtime
+# ==========================================
+.wrangler/
+wrangler.log*
+.dev.vars*
+
+# ==========================================
+# Databases & Local Runtime Storage
+# ==========================================
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
+*.sqlite
+*.sqlite3
+nonces.db
+packages/edge-gateway/nonces.db
+
+# ==========================================
+# Secrets, Keys, & Environment Variables
+# ==========================================
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.cert
+*.crt
+*.pfx
+*.p12
+
+# ==========================================
+# Terminal & Shell Histories
+# ==========================================
+.*_history
+.bash_history
+.zsh_history
+.sh_history
+.node_repl_history
+.python_history
+history.log
+
+# ==========================================
+# Editors, IDEs, & OS Metadata
+# ==========================================
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# ==========================================
+# Testing & Coverage
+# ==========================================
+coverage/
+.nyc_output/
+*.lcov
+test-results/
+playwright-report/

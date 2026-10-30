@@ -1,0 +1,166 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://x401.tech/schemas/v1/agent-delegation-ticket.json",
+  "title": "x401AgentDelegationTicket",
+  "type": "object",
+  "required": [
+    "x401_version",
+    "ticket_id",
+    "issuer",
+    "subject_agent",
+    "issued_at",
+    "expires_at",
+    "nonce",
+    "permissions",
+    "signature"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "x401_version": {
+      "type": "string",
+      "const": "1.0.0"
+    },
+    "ticket_id": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "issuer": {
+      "type": "object",
+      "required": ["did", "verification_method", "public_key_jwk"],
+      "additionalProperties": false,
+      "properties": {
+        "did": {
+          "type": "string",
+          "pattern": "^did:[a-z0-9]+:.+$"
+        },
+        "verification_method": {
+          "type": "string",
+          "format": "uri"
+        },
+        "public_key_jwk": {
+          "type": "object",
+          "required": ["kty", "crv", "x", "y"],
+          "additionalProperties": false,
+          "properties": {
+            "kty": { "type": "string", "const": "EC" },
+            "crv": { "type": "string", "enum": ["P-256", "secp256k1"] },
+            "x": { "type": "string", "pattern": "^[A-Za-z0-9_-]{43}$" },
+            "y": { "type": "string", "pattern": "^[A-Za-z0-9_-]{43}$" }
+          }
+        }
+      }
+    },
+    "subject_agent": {
+      "type": "object",
+      "required": ["agent_id", "public_key_jwk"],
+      "additionalProperties": false,
+      "properties": {
+        "agent_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "public_key_jwk": {
+          "type": "object",
+          "required": ["kty", "crv", "x", "y"],
+          "additionalProperties": false,
+          "properties": {
+            "kty": { "type": "string", "const": "EC" },
+            "crv": { "type": "string", "enum": ["P-256", "secp256k1"] },
+            "x": { "type": "string", "pattern": "^[A-Za-z0-9_-]{43}$" },
+            "y": { "type": "string", "pattern": "^[A-Za-z0-9_-]{43}$" }
+          }
+        }
+      }
+    },
+    "issued_at": {
+      "type": "integer",
+      "minimum": 1700000000
+    },
+    "expires_at": {
+      "type": "integer",
+      "minimum": 1700000000
+    },
+    "nonce": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{32,64}$"
+    },
+    "permissions": {
+      "type": "object",
+      "required": ["mcp_tools", "cross_server_transfer"],
+      "additionalProperties": false,
+      "properties": {
+        "mcp_tools": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["server_origin", "allowed_actions"],
+            "additionalProperties": false,
+            "properties": {
+              "server_origin": {
+                "type": "string",
+                "format": "uri"
+              },
+              "allowed_actions": {
+                "type": "array",
+                "items": { "type": "string", "minLength": 1 },
+                "uniqueItems": true
+              },
+              "denied_actions": {
+                "type": "array",
+                "items": { "type": "string", "minLength": 1 },
+                "uniqueItems": true
+              }
+            }
+          }
+        },
+        "budget": {
+          "type": "object",
+          "required": ["currency", "max_session_spend", "per_action_limit"],
+          "additionalProperties": false,
+          "properties": {
+            "currency": { "type": "string", "enum": ["USDC", "USD", "EUR"] },
+            "network": { "type": "string", "enum": ["base", "ethereum", "polygon"] },
+            "max_session_spend": { "type": "number", "minimum": 0 },
+            "per_action_limit": { "type": "number", "minimum": 0 }
+          }
+        },
+        "cross_server_transfer": {
+          "type": "object",
+          "required": ["allowed_routes"],
+          "additionalProperties": false,
+          "properties": {
+            "allowed_routes": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "required": ["from_server", "to_server"],
+                "additionalProperties": false,
+                "properties": {
+                  "from_server": { "type": "string", "format": "uri" },
+                  "to_server": { "type": "string", "format": "uri" },
+                  "allowed_artifact_types": {
+                    "type": "array",
+                    "items": { "type": "string" }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "signature": {
+      "type": "object",
+      "required": ["algorithm", "value"],
+      "additionalProperties": false,
+      "properties": {
+        "algorithm": { "type": "string", "enum": ["ES256"] },
+        "value": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]+$"
+        }
+      }
+    }
+  }
+}
