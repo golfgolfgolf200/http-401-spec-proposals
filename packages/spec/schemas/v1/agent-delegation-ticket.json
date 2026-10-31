@@ -1,37 +1,41 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://401frameworks.org/schemas/v1/agent-delegation-ticket.json",
-  "title": "AEDAgentDelegationTicket",
+  "$id": "https://401frameworks.org/schemas/v2/agent-delegation-ticket.json",
+  "title": "AEDAgentDelegationTicketV2",
+  "description": "Cryptographic delegation ticket enforcing deterministic input commitments, deliverable output contracts, audience isolation, and gasless Circle EIP-3009 receiveWithAuthorization or Macaroon settlement.",
   "type": "object",
   "required": [
+    "aed_version",
     "ticket_id",
+    "audience",
     "issuer",
     "subject_agent",
     "issued_at",
     "expires_at",
     "nonce",
     "permissions",
+    "settlement_terms",
+    "error_handling",
     "signature"
   ],
-  "anyOf": [
-    { "required": ["aed_version"] },
-    { "required": ["x401_version"] }
-  ],
+  "additionalProperties": false,
   "properties": {
     "aed_version": {
       "type": "string",
-      "const": "1.0.0"
-    },
-    "x401_version": {
-      "type": "string",
-      "const": "1.0.0"
+      "const": "2.0.0"
     },
     "ticket_id": {
       "type": "string",
       "format": "uuid"
     },
+    "audience": {
+      "type": "string",
+      "format": "uri",
+      "description": "The exact origin of the target verifying gateway to prevent cross-gateway replay."
+    },
     "issuer": {
       "type": "object",
+      "description": "The human principal, treasury, or delegating organization.",
       "required": ["did", "verification_method", "public_key_jwk"],
       "additionalProperties": false,
       "properties": {
@@ -45,19 +49,31 @@
         },
         "public_key_jwk": {
           "type": "object",
-          "required": ["kty", "crv", "x", "y"],
+          "required": ["kty", "crv", "x"],
           "additionalProperties": false,
           "properties": {
-            "kty": { "type": "string", "const": "EC" },
-            "crv": { "type": "string", "enum": ["P-256", "secp256k1"] },
-            "x": { "type": "string", "pattern": "^[A-Za-z0-9_-]{43}$" },
-            "y": { "type": "string", "pattern": "^[A-Za-z0-9_-]{43}$" }
-          }
+            "kid": { "type": "string" },
+            "kty": { "type": "string", "enum": ["EC", "OKP"] },
+            "crv": { "type": "string", "enum": ["P-256", "secp256k1", "Ed25519"] },
+            "x": { "type": "string", "pattern": "^[A-Za-z0-9_-]{43,44}$" },
+            "y": { "type": "string", "pattern": "^[A-Za-z0-9_-]{43,44}$" }
+          },
+          "allOf": [
+            {
+              "if": { "properties": { "crv": { "enum": ["P-256", "secp256k1"] } } },
+              "then": { "required": ["y"], "properties": { "kty": { "const": "EC" } } }
+            },
+            {
+              "if": { "properties": { "crv": { "const": "Ed25519" } } },
+              "then": { "not": { "required": ["y"] }, "properties": { "kty": { "const": "OKP" } } }
+            }
+          ]
         }
       }
     },
     "subject_agent": {
       "type": "object",
+      "description": "The autonomous agent executing calls.",
       "required": ["agent_id", "public_key_jwk"],
       "additionalProperties": false,
       "properties": {
@@ -68,36 +84,58 @@
         },
         "public_key_jwk": {
           "type": "object",
-          "required": ["kty", "crv", "x", "y"],
+          "required": ["kty", "crv", "x"],
           "additionalProperties": false,
           "properties": {
-            "kty": { "type": "string", "const": "EC" },
-            "crv": { "type": "string", "enum": ["P-256", "secp256k1"] },
-            "x": { "type": "string", "pattern": "^[A-Za-z0-9_-]{43}$" },
-            "y": { "type": "string", "pattern": "^[A-Za-z0-9_-]{43}$" }
-          }
+            "kid": { "type": "string" },
+            "kty": { "type": "string", "enum": ["EC", "OKP"] },
+            "crv": { "type": "string", "enum": ["P-256", "secp256k1", "Ed25519"] },
+            "x": { "type": "string", "pattern": "^[A-Za-z0-9_-]{43,44}$" },
+            "y": { "type": "string", "pattern": "^[A-Za-z0-9_-]{43,44}$" }
+          },
+          "allOf": [
+            {
+              "if": { "properties": { "crv": { "enum": ["P-256", "secp256k1"] } } },
+              "then": { "required": ["y"], "properties": { "kty": { "const": "EC" } } }
+            },
+            {
+              "if": { "properties": { "crv": { "const": "Ed25519" } } },
+              "then": { "not": { "required": ["y"] }, "properties": { "kty": { "const": "OKP" } } }
+            }
+          ]
         }
       }
     },
     "issued_at": {
       "type": "integer",
-      "minimum": 1700000000
+      "minimum": 1700000000,
+      "description": "Unix timestamp in seconds when minted."
     },
     "expires_at": {
       "type": "integer",
-      "minimum": 1700000000
+      "minimum": 1700000000,
+      "description": "Unix timestamp in seconds after which gateway MUST reject the ticket."
+    },
+    "max_ttl_seconds": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 86400,
+      "default": 3600,
+      "description": "Maximum allowable window between issued_at and expires_at."
     },
     "nonce": {
       "type": "string",
-      "pattern": "^[a-f0-9]{32,64}$"
+      "pattern": "^[a-f0-9]{32,64}$",
+      "description": "Single-use challenge nonce generated by the target gateway."
     },
     "permissions": {
       "type": "object",
-      "required": ["mcp_tools", "cross_server_transfer"],
+      "required": ["mcp_tools", "budget"],
       "additionalProperties": false,
       "properties": {
         "mcp_tools": {
           "type": "array",
+          "minItems": 1,
           "items": {
             "type": "object",
             "required": ["server_origin", "allowed_actions"],
@@ -116,57 +154,454 @@
                 "type": "array",
                 "items": { "type": "string", "minLength": 1 },
                 "uniqueItems": true
+              },
+              "disallow_batch_rpc": {
+                "type": "boolean",
+                "default": true,
+                "description": "Prevents JSON-RPC batching exploits against singular call commitments."
+              },
+              "parameter_constraints": {
+                "type": "object",
+                "description": "Deterministic commitment locking arguments passed into the tool call.",
+                "additionalProperties": false,
+                "properties": {
+                  "canonicalization_target": {
+                    "type": "string",
+                    "enum": ["mcp_tool_arguments", "jsonrpc_raw_params"],
+                    "default": "mcp_tool_arguments",
+                    "description": "Explicit target hashed by call_commitment. 'mcp_tool_arguments' hashes RFC 8785 canonical params.arguments; 'jsonrpc_raw_params' hashes RFC 8785 canonical params directly."
+                  },
+                  "call_commitment": {
+                    "type": "string",
+                    "pattern": "^[a-f0-9]{64}$",
+                    "description": "Deterministic SHA-256 digest of RFC 8785 canonical payload target defined by canonicalization_target."
+                  },
+                  "parameter_rules": {
+                    "type": "array",
+                    "description": "Declarative assertions evaluated against incoming arguments via JSONPath.",
+                    "items": {
+                      "type": "object",
+                      "required": ["path", "operator", "value"],
+                      "additionalProperties": false,
+                      "properties": {
+                        "path": {
+                          "type": "string",
+                          "pattern": "^\\$.*"
+                        },
+                        "operator": {
+                          "type": "string",
+                          "enum": [
+                            "equals",
+                            "not_equals",
+                            "less_than_or_equal",
+                            "greater_than_or_equal",
+                            "in",
+                            "regex_match"
+                          ]
+                        },
+                        "value": {}
+                      }
+                    }
+                  },
+                  "schema": {
+                    "type": "object",
+                    "description": "Embedded JSON Schema strictly validating params before invocation."
+                  }
+                }
+              },
+              "output_contract": {
+                "type": "object",
+                "description": "Verifiable criteria upstream output MUST fulfill before funds are released.",
+                "required": ["expected_output_schema"],
+                "additionalProperties": false,
+                "properties": {
+                  "expected_output_schema": {
+                    "type": "object",
+                    "description": "JSON Schema validated against upstream response before settlement."
+                  },
+                  "strict_mode": {
+                    "type": "boolean",
+                    "default": true,
+                    "description": "Forces additionalProperties: false during gateway response validation."
+                  },
+                  "max_payload_bytes": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 10485760,
+                    "default": 1048576,
+                    "description": "Maximum payload size in bytes (default 1MB)."
+                  },
+                  "max_latency_ms": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 300000
+                  },
+                  "proof_of_deliverable": {
+                    "type": "object",
+                    "required": ["require_server_signature", "signed_digest_format"],
+                    "additionalProperties": false,
+                    "properties": {
+                      "require_server_signature": {
+                        "type": "boolean",
+                        "default": true
+                      },
+                      "signed_digest_format": {
+                        "type": "string",
+                        "const": "sha256(ticket_id:nonce:action:canonical_body)",
+                        "default": "sha256(ticket_id:nonce:action:canonical_body)",
+                        "description": "Binds server deliverable signature strictly to this specific request ticket, challenge nonce, and targeted action."
+                      },
+                      "server_attestation_public_key": {
+                        "type": "object"
+                      }
+                    }
+                  }
+                }
               }
             }
           }
         },
         "budget": {
           "type": "object",
-          "required": ["currency", "max_session_spend", "per_action_limit"],
+          "required": ["currency", "network", "max_session_spend", "per_action_limit"],
           "additionalProperties": false,
           "properties": {
-            "currency": { "type": "string", "enum": ["USDC", "USD", "EUR"] },
-            "network": { "type": "string", "enum": ["base", "ethereum", "polygon"] },
-            "max_session_spend": { "type": "number", "minimum": 0 },
-            "per_action_limit": { "type": "number", "minimum": 0 }
+            "currency": {
+              "type": "string",
+              "enum": ["USDC", "USD", "EUR"]
+            },
+            "network": {
+              "type": "string",
+              "enum": ["base", "ethereum", "arbitrum", "polygon"]
+            },
+            "max_session_spend": {
+              "type": "number",
+              "minimum": 0
+            },
+            "per_action_limit": {
+              "type": "number",
+              "minimum": 0
+            }
           }
+        }
+      }
+    },
+    "settlement_terms": {
+      "type": "object",
+      "description": "Defines settlement terms via native Circle USDC EIP-3009 receiveWithAuthorization or chained Macaroon tokens.",
+      "required": ["rail", "settlement_condition", "arbitrator_gateway"],
+      "additionalProperties": false,
+      "properties": {
+        "rail": {
+          "type": "string",
+          "enum": ["circle_usdc_eip3009", "macaroon_caveat_chain"]
         },
-        "cross_server_transfer": {
+        "settlement_condition": {
+          "type": "string",
+          "const": "output_schema_and_proof_verified"
+        },
+        "arbitrator_gateway": {
+          "type": "string",
+          "format": "uri",
+          "description": "Gateway URI authorized to validate output contract and release settlement."
+        },
+        "circle_usdc_eip3009": {
           "type": "object",
-          "required": ["allowed_routes"],
+          "description": "Native Circle USDC EIP-3009 gasless receiveWithAuthorization params (front-running immune).",
+          "required": [
+            "authorization_type",
+            "chain_id",
+            "token_contract",
+            "authorizer",
+            "recipient",
+            "value_atomic_units",
+            "valid_after",
+            "valid_before",
+            "auth_nonce",
+            "signature"
+          ],
           "additionalProperties": false,
           "properties": {
-            "allowed_routes": {
-              "type": "array",
-              "items": {
-                "type": "object",
-                "required": ["from_server", "to_server"],
-                "additionalProperties": false,
-                "properties": {
-                  "from_server": { "type": "string", "format": "uri" },
-                  "to_server": { "type": "string", "format": "uri" },
-                  "allowed_artifact_types": {
-                    "type": "array",
-                    "items": { "type": "string" }
-                  }
+            "authorization_type": {
+              "type": "string",
+              "const": "receiveWithAuthorization",
+              "default": "receiveWithAuthorization",
+              "description": "Mandates receiveWithAuthorization so msg.sender is constrained strictly to recipient."
+            },
+            "chain_id": {
+              "type": "integer",
+              "enum": [1, 8453, 42161, 137]
+            },
+            "token_contract": {
+              "type": "string",
+              "pattern": "^0x[a-fA-F0-9]{40}$",
+              "not": { "const": "0x0000000000000000000000000000000000000000" },
+              "description": "Official Circle USDC contract address on the target chain."
+            },
+            "authorizer": {
+              "type": "string",
+              "pattern": "^0x[a-fA-F0-9]{40}$",
+              "not": { "const": "0x0000000000000000000000000000000000000000" },
+              "description": "Payer wallet address holding the USDC balance."
+            },
+            "recipient": {
+              "type": "string",
+              "pattern": "^0x[a-fA-F0-9]{40}$",
+              "not": { "const": "0x0000000000000000000000000000000000000000" },
+              "description": "The verifying gateway relayer address (msg.sender) authorized to execute settlement on-chain."
+            },
+            "value_atomic_units": {
+              "type": "string",
+              "pattern": "^[1-9][0-9]*$",
+              "description": "USDC atomic amount (6 decimals, e.g. 50000 = $0.05 USDC)."
+            },
+            "valid_after": {
+              "type": "integer",
+              "description": "Unix timestamp before which execution is rejected."
+            },
+            "valid_before": {
+              "type": "integer",
+              "description": "Unix timestamp after which authorization reverts on-chain."
+            },
+            "auth_nonce": {
+              "type": "string",
+              "pattern": "^0x[a-fA-F0-9]{64}$",
+              "description": "Random 32-byte EIP-3009 nonce preventing replay attacks."
+            },
+            "signature": {
+              "type": "object",
+              "required": ["v", "r", "s"],
+              "additionalProperties": false,
+              "properties": {
+                "v": { "type": "integer", "enum": [27, 28] },
+                "r": { "type": "string", "pattern": "^0x[a-fA-F0-9]{64}$" },
+                "s": { 
+                  "type": "string", 
+                  "pattern": "^0x[a-fA-F0-9]{64}$",
+                  "description": "Standard 32-byte EVM S-scalar."
                 }
               }
             }
+          }
+        },
+        "macaroon_caveat_chain": {
+          "type": "object",
+          "description": "Chained HMAC macaroon token parameters.",
+          "required": ["location", "identifier", "root_key_id", "caveats", "signature_hex"],
+          "additionalProperties": false,
+          "properties": {
+            "location": {
+              "type": "string",
+              "format": "uri"
+            },
+            "identifier": {
+              "type": "string"
+            },
+            "root_key_id": {
+              "type": "string",
+              "description": "Unique key identifier for the gateway's secret store."
+            },
+            "caveats": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "required": ["type", "predicate"],
+                "additionalProperties": false,
+                "properties": {
+                  "type": { "type": "string", "enum": ["first_party", "third_party"] },
+                  "predicate": { "type": "string" },
+                  "verification_key_id": { "type": "string" },
+                  "discharge_gateway": { "type": "string", "format": "uri" }
+                }
+              }
+            },
+            "signature_hex": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{64}$"
+            }
+          }
+        }
+      },
+      "allOf": [
+        {
+          "if": { "properties": { "rail": { "const": "circle_usdc_eip3009" } } },
+          "then": { "required": ["circle_usdc_eip3009"] }
+        },
+        {
+          "if": { "properties": { "rail": { "const": "macaroon_caveat_chain" } } },
+          "then": { "required": ["macaroon_caveat_chain"] }
+        }
+      ]
+    },
+    "error_handling": {
+      "type": "object",
+      "description": "Strict failure states for Circle USDC settlement and deliverable verification.",
+      "required": ["on_schema_violation", "on_payment_failure", "supported_error_codes"],
+      "additionalProperties": false,
+      "properties": {
+        "on_schema_violation": {
+          "type": "string",
+          "enum": ["abort_and_void_auth", "quarantine_deliverable"]
+        },
+        "on_payment_failure": {
+          "type": "string",
+          "enum": ["fail_closed_with_502", "return_402_challenge"]
+        },
+        "supported_error_codes": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": [
+              "ERR_USDC_AUTHORIZATION_EXPIRED",
+              "ERR_USDC_NONCE_ALREADY_USED",
+              "ERR_USDC_INSUFFICIENT_FUNDS",
+              "ERR_USDC_SIGNATURE_INVALID",
+              "ERR_USDC_CALLER_UNAUTHORIZED",
+              "ERR_USDC_CHAIN_MISMATCH",
+              "ERR_DELIVERABLE_SCHEMA_MISMATCH",
+              "ERR_DELIVERABLE_PAYLOAD_TOO_LARGE",
+              "ERR_DELIVERABLE_TIMEOUT",
+              "ERR_SERVER_SIGNATURE_INVALID",
+              "ERR_SERVER_PROOF_REPLAYED",
+              "ERR_MACAROON_CAVEAT_VIOLATION",
+              "ERR_CALL_COMMITMENT_MISMATCH",
+              "ERR_AUDIENCE_MISMATCH",
+              "ERR_LIFESPAN_EXCEEDED",
+              "ERR_BATCH_RPC_REJECTED"
+            ]
           }
         }
       }
     },
     "signature": {
       "type": "object",
+      "description": "Ticket ES256/EdDSA signature covering canonical RFC 8785 ticket body.",
       "required": ["algorithm", "value"],
       "additionalProperties": false,
       "properties": {
-        "algorithm": { "type": "string", "enum": ["ES256"] },
+        "algorithm": {
+          "type": "string",
+          "enum": ["ES256", "EdDSA"]
+        },
         "value": {
           "type": "string",
-          "pattern": "^[A-Za-z0-9_-]+$"
+          "pattern": "^[A-Za-z0-9_-]{86,132}$"
         }
       }
     }
-  }
+  },
+  "oneOf": [
+    {
+      "properties": {
+        "settlement_terms": {
+          "required": ["rail"],
+          "properties": { "rail": { "const": "macaroon_caveat_chain" } }
+        }
+      }
+    },
+    {
+      "properties": {
+        "settlement_terms": {
+          "required": ["rail", "circle_usdc_eip3009"],
+          "properties": {
+            "rail": { "const": "circle_usdc_eip3009" },
+            "circle_usdc_eip3009": {
+              "required": ["chain_id"],
+              "properties": { "chain_id": { "const": 1 } }
+            }
+          }
+        },
+        "permissions": {
+          "required": ["budget"],
+          "properties": {
+            "budget": {
+              "required": ["currency", "network"],
+              "properties": {
+                "currency": { "const": "USDC" },
+                "network": { "const": "ethereum" }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "properties": {
+        "settlement_terms": {
+          "required": ["rail", "circle_usdc_eip3009"],
+          "properties": {
+            "rail": { "const": "circle_usdc_eip3009" },
+            "circle_usdc_eip3009": {
+              "required": ["chain_id"],
+              "properties": { "chain_id": { "const": 8453 } }
+            }
+          }
+        },
+        "permissions": {
+          "required": ["budget"],
+          "properties": {
+            "budget": {
+              "required": ["currency", "network"],
+              "properties": {
+                "currency": { "const": "USDC" },
+                "network": { "const": "base" }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "properties": {
+        "settlement_terms": {
+          "required": ["rail", "circle_usdc_eip3009"],
+          "properties": {
+            "rail": { "const": "circle_usdc_eip3009" },
+            "circle_usdc_eip3009": {
+              "required": ["chain_id"],
+              "properties": { "chain_id": { "const": 42161 } }
+            }
+          }
+        },
+        "permissions": {
+          "required": ["budget"],
+          "properties": {
+            "budget": {
+              "required": ["currency", "network"],
+              "properties": {
+                "currency": { "const": "USDC" },
+                "network": { "const": "arbitrum" }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "properties": {
+        "settlement_terms": {
+          "required": ["rail", "circle_usdc_eip3009"],
+          "properties": {
+            "rail": { "const": "circle_usdc_eip3009" },
+            "circle_usdc_eip3009": {
+              "required": ["chain_id"],
+              "properties": { "chain_id": { "const": 137 } }
+            }
+          }
+        },
+        "permissions": {
+          "required": ["budget"],
+          "properties": {
+            "budget": {
+              "required": ["currency", "network"],
+              "properties": {
+                "currency": { "const": "USDC" },
+                "network": { "const": "polygon" }
+              }
+            }
+          }
+        }
+      }
+    }
+  ]
 }
