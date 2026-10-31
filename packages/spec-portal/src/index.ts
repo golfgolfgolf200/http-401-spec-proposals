@@ -81,7 +81,7 @@ app.get("/", (c) => {
     </div>
     
     <div class="collaborative-note">
-      <strong>Collaborative Standard:</strong> This proposal is a collaborative effort designed to establish greater trust, verifiability, and safety boundaries between upstream servers and autonomous AI agents across the ecosystem.
+      <strong>Collaborative Standard:</strong> This proposal is a collaborative effort designed to establish greater trust, verifiability, and safety boundaries between upstream servers and autonomous AI agents across the agentic ecosystem.
     </div>
 
     <p class="desc">This schema establishes a zero-trust, boundary-enforced delegation and gasless settlement contract for autonomous AI agents. Rather than relying on agent alignment, natural language boundaries, or custom escrow smart contracts, it enforces mathematical and cryptographic constraints directly at the network edge before external tools execute and before payments settle.</p>
