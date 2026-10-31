@@ -1,11 +1,14 @@
 {
   "extends": "../../tsconfig.base.json",
   "compilerOptions": {
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "allowImportingTsExtensions": true,
+    "noEmit": true,
     "types": [
       "@cloudflare/workers-types",
       "node"
-    ],
-    "noEmit": true
+    ]
   },
   "include": [
     "src/**/*"

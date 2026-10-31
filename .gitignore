@@ -85,3 +85,24 @@ coverage/
 *.lcov
 test-results/
 playwright-report/
+
+# ==========================================
+# Local Security & Custom Overrides
+# ==========================================
+packages/edge-gateway/src/validate-url.ts
+packages/verifier/tsconfig.build.jsonpackages/verifier/tsconfig.build.json
+
+packages/verifier/tsconfig.build.json
+
+*.db
+*.db-*
+*.sqlite
+*.sqlite-*
+
+*.db
+*.db-*
+*.sqlite
+*.sqlite-*
+*.log
+
+*.log

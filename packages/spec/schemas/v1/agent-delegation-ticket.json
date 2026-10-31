@@ -1,10 +1,9 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://x401.tech/schemas/v1/agent-delegation-ticket.json",
-  "title": "x401AgentDelegationTicket",
+  "$id": "https://401frameworks.org/schemas/v1/agent-delegation-ticket.json",
+  "title": "AEDAgentDelegationTicket",
   "type": "object",
   "required": [
-    "x401_version",
     "ticket_id",
     "issuer",
     "subject_agent",
@@ -14,8 +13,15 @@
     "permissions",
     "signature"
   ],
-  "additionalProperties": false,
+  "anyOf": [
+    { "required": ["aed_version"] },
+    { "required": ["x401_version"] }
+  ],
   "properties": {
+    "aed_version": {
+      "type": "string",
+      "const": "1.0.0"
+    },
     "x401_version": {
       "type": "string",
       "const": "1.0.0"

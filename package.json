@@ -7,9 +7,10 @@
     "packages/*"
   ],
   "scripts": {
-    "build:all": "npm run build --workspace=@x401/verifier && npm run build --workspace=@x401/edge-gateway",
+    "build:all": "npm run --workspaces --if-present build",
     "test:verifier": "npm run test --workspace=@x401/verifier",
-    "test:e2e": "npm run test:e2e --workspace=@x401/edge-gateway"
+    "test:e2e": "npm run test:e2e --workspace=@x401/edge-gateway",
+    "build": "npm run build:all"
   },
   "license": "Apache-2.0"
 }

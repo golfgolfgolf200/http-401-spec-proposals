@@ -3,8 +3,9 @@ import {
   canonicalizeJSON,
   uint8ArrayToBase64Url,
   X401DelegationTicket,
-  JWK_EC
-} from "../src/index";
+  JWK_EC,
+  verifyX401Ticket
+} from "@x401/verifier";
 
 // Mock upstream MCP servers
 function startMockMcp(port: number, serviceName: string) {
@@ -82,6 +83,7 @@ async function runE2E() {
   console.log("--> Minting Delegation Ticket signed by Human...");
   const now = Math.floor(Date.now() / 1000);
   const ticketBody: Omit<X401DelegationTicket, "signature"> = {
+    aed_version: "1.0.0",
     x401_version: "1.0.0",
     ticket_id: crypto.randomUUID(),
     issuer: {
@@ -135,12 +137,7 @@ async function runE2E() {
     }
   };
 
-  const serializedTicket = uint8ArrayToBase64Url(
-    new TextEncoder().encode(JSON.stringify(fullTicket))
-  );
-
   console.log("--> Dispatched Agent Context Transfer: Slack -> Linear");
-  const { verifyX401Ticket } = await import("../src/index");
 
   // Step 1: Verify token against gateway parameters
   await verifyX401Ticket(fullTicket, {

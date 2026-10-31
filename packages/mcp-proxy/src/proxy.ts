@@ -7,7 +7,8 @@ export interface McpToolPermission {
 }
 
 export interface TicketPayload {
-  x401_version: string;
+  x401_version?: string;
+  aed_version?: string;
   ticket_id: string;
   issuer?: {
     did?: string;
@@ -89,15 +90,16 @@ export class X401McpInterceptor {
       id: rpcId,
       error: {
         code: 401,
-        message: "X401_AUTHENTICATION_REQUIRED",
+        message: "AED_AUTHENTICATION_REQUIRED",
         data: {
           error: "Delegation Ticket Required",
           reason,
           target_tool: toolName,
           server_origin: this.policy.serverOrigin,
           challenge: {
+            scheme: "AED",
             nonce,
-            schema_uri: "https://x401.tech/schemas/v1/agent-delegation-ticket.json",
+            schema_uri: "https://401frameworks.org/schemas/v1/agent-delegation-ticket.json",
             accepted_algorithms: ["ES256"],
             expires_in_seconds: this.policy.challengeTtlSeconds || 300
           }
@@ -115,12 +117,12 @@ export class X401McpInterceptor {
 
     const toolName = params?.name;
     const meta = params?._meta || {};
-    const rawTicket = meta.x401_ticket || meta.authorization;
+    const rawTicket = meta.aed_ticket || meta.x401_ticket || meta.authorization;
 
     if (!rawTicket) {
       return {
         allowed: false,
-        rpcResponse: this.create401Challenge(id, toolName, "No x401 delegation ticket provided in params._meta")
+        rpcResponse: this.create401Challenge(id, toolName, "No AED/x401 delegation ticket provided in params._meta")
       };
     }
 
@@ -128,7 +130,9 @@ export class X401McpInterceptor {
     try {
       if (typeof rawTicket === "string") {
         let clean = rawTicket.trim();
+        if (clean.startsWith("Authorization: AED ")) clean = clean.slice(19).trim();
         if (clean.startsWith("Authorization: X401 ")) clean = clean.slice(20).trim();
+        if (clean.startsWith("AED ")) clean = clean.slice(4).trim();
         if (clean.startsWith("X401 ")) clean = clean.slice(5).trim();
         const jsonStr = Buffer.from(clean, "base64url").toString("utf-8");
         ticket = JSON.parse(jsonStr);

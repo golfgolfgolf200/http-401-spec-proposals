@@ -10,9 +10,9 @@ import {
   type X401DelegationTicket,
   X401VerificationError
 } from "@x401/verifier";
+import { isValidUpstreamMcp } from "./validate-url.ts";
 
-// Initialize local SQLite nonce storage
-const db = new DatabaseSync("./nonces.db");
+const db = new DatabaseSync("/var/lib/x401-auth/nonces.db");
 db.exec(`
   CREATE TABLE IF NOT EXISTS active_nonces (
     nonce TEXT PRIMARY KEY,
@@ -25,34 +25,88 @@ db.exec(`
 const stmtInsert = db.prepare(
   "INSERT INTO active_nonces (nonce, created_at, expires_at) VALUES (?, ?, ?)"
 );
-// Atomic burn: validates validity/expiry and deletes in a single operation
 const stmtAtomicBurn = db.prepare(
   "DELETE FROM active_nonces WHERE nonce = ? AND expires_at >= ? RETURNING nonce"
 );
-// Pruning statement for expired unredeemed nonces
 const stmtPruneExpired = db.prepare(
   "DELETE FROM active_nonces WHERE expires_at < ?"
 );
 
-// Sweep expired nonces every 60 seconds
 setInterval(() => {
   try {
     const now = Math.floor(Date.now() / 1000);
     stmtPruneExpired.run(now);
   } catch (err) {
-    console.error("[x401-gateway] Error during nonce sweep:", err);
+    console.error("[aed-gateway] Error during nonce sweep:", err);
   }
 }, 60000).unref();
+
+interface RateLimitBucket {
+  count: number;
+  resetAt: number;
+}
+const rateLimitStore = new Map<string, RateLimitBucket>();
+
+setInterval(() => {
+  const now = Date.now();
+  for (const [ip, bucket] of rateLimitStore.entries()) {
+    if (now > bucket.resetAt) {
+      rateLimitStore.delete(ip);
+    }
+  }
+}, 300000).unref();
+
+function rateLimiter(limit: number, windowSec: number) {
+  return async (c: any, next: () => Promise<void>) => {
+    const clientIp =
+      c.req.header("cf-connecting-ip") ||
+      c.req.header("x-forwarded-for")?.split(",")[0]?.trim() ||
+      "127.0.0.1";
+
+    const now = Date.now();
+    const windowMs = windowSec * 1000;
+    const bucket = rateLimitStore.get(clientIp);
+
+    if (!bucket || now > bucket.resetAt) {
+      rateLimitStore.set(clientIp, { count: 1, resetAt: now + windowMs });
+      c.header("RateLimit-Limit", String(limit));
+      c.header("RateLimit-Remaining", String(limit - 1));
+      c.header("RateLimit-Reset", String(Math.ceil((now + windowMs) / 1000)));
+      await next();
+      return;
+    }
+
+    if (bucket.count >= limit) {
+      const retryAfter = Math.max(1, Math.ceil((bucket.resetAt - now) / 1000));
+      c.header("Retry-After", String(retryAfter));
+      c.header("RateLimit-Limit", String(limit));
+      c.header("RateLimit-Remaining", "0");
+      c.header("RateLimit-Reset", String(Math.ceil(bucket.resetAt / 1000)));
+      return c.json(
+        {
+          error: "Too Many Requests",
+          message: "Rate limit exceeded. Please retry after specified time."
+        },
+        429
+      );
+    }
+
+    bucket.count += 1;
+    c.header("RateLimit-Limit", String(limit));
+    c.header("RateLimit-Remaining", String(limit - bucket.count));
+    c.header("RateLimit-Reset", String(Math.ceil(bucket.resetAt / 1000)));
+    await next();
+  };
+}
 
 const app = new Hono();
 
 app.use("*", cors({
   origin: "*",
   allowHeaders: ["Content-Type", "Authorization", "PROOF-RESPONSE", "PROOF-REQUEST"],
-  exposeHeaders: ["WWW-Authenticate", "PROOF-REQUEST", "PROOF-RESULT"]
+  exposeHeaders: ["WWW-Authenticate", "PROOF-REQUEST", "PROOF-RESULT", "RateLimit-Limit", "RateLimit-Remaining", "RateLimit-Reset", "Retry-After"]
 }));
 
-// Public Schema Endpoint
 const schemaPath = path.resolve("./schemas/v1/agent-delegation-ticket.json");
 let cachedSchema: string | null = null;
 if (fs.existsSync(schemaPath)) {
@@ -74,22 +128,20 @@ app.get("/schemas/v1/agent-delegation-ticket.json", (c) => {
   });
 });
 
-// Health check
 app.get("/health", (c) => {
   return c.json({ status: "healthy", domain: "auth.x401.tech", port: 3006 });
 });
 
-// 1. Issue challenge nonce & x401 headers
-app.get("/challenge", (c) => {
+app.get("/challenge", rateLimiter(45, 60), (c) => {
   const nonce = crypto.randomBytes(24).toString("hex");
   const now = Math.floor(Date.now() / 1000);
-  const expiresAt = now + 300; // 5 min TTL
+  const expiresAt = now + 300;
 
   stmtInsert.run(nonce, now, expiresAt);
 
   c.header(
     "WWW-Authenticate",
-    `X401 realm="auth.x401.tech", challenge="${nonce}", spec="https://auth.x401.tech/schemas/v1/agent-delegation-ticket.json"`
+    `AED realm="auth.x401.tech", challenge="${nonce}", spec="https://401frameworks.org/schemas/v1/agent-delegation-ticket.json"`
   );
   c.header(
     "PROOF-REQUEST",
@@ -105,23 +157,33 @@ app.get("/challenge", (c) => {
   return c.json({ error: "Unauthorized", challenge: nonce }, 401);
 });
 
-// 2. Cross-MCP Dispatch Gateway
-app.post("/mcp/dispatch", async (c) => {
+app.post("/mcp/dispatch", rateLimiter(60, 60), async (c) => {
+  const MAX_BYTES = 1024 * 1024; // 1 MB
+  const contentLength = Number(c.req.header("content-length") || "0");
+  if (contentLength > MAX_BYTES) {
+    return c.json({ error: "Payload Too Large", code: "ERR_PAYLOAD_TOO_LARGE" }, 413);
+  }
+
+
   const authHeader = c.req.header("Authorization");
   const proofResponse = c.req.header("PROOF-RESPONSE");
 
   let rawToken: string | undefined;
-  if (authHeader?.startsWith("X401 ")) {
+  if (authHeader?.startsWith("AED ")) {
+    rawToken = authHeader.slice(4).trim();
+  } else if (authHeader?.startsWith("X401 ")) {
     rawToken = authHeader.slice(5).trim();
+  } else if (authHeader?.startsWith("Bearer ")) {
+    rawToken = authHeader.slice(7).trim();
   } else if (proofResponse) {
     rawToken = proofResponse.trim();
   }
 
   if (!rawToken) {
     return c.json(
-      { error: "Missing x401 token", challenge_endpoint: "/challenge" },
+      { error: "Missing delegation token", challenge_endpoint: "/challenge" },
       401,
-      { "WWW-Authenticate": 'X401 realm="auth.x401.tech"' }
+      { "WWW-Authenticate": "AED realm=\"auth.x401.tech\"" }
     );
   }
 
@@ -136,15 +198,33 @@ app.post("/mcp/dispatch", async (c) => {
     return c.json({ error: "Malformed delegation token payload" }, 400);
   }
 
-  const payload = await c.req.json();
+  let payload: any;
+  try {
+    const rawBody = await c.req.text();
+    if (new TextEncoder().encode(rawBody).length > MAX_BYTES) {
+      return c.json({ error: "Payload Too Large", code: "ERR_PAYLOAD_TOO_LARGE" }, 413);
+    }
+    payload = JSON.parse(rawBody);
+  } catch (err: unknown) {
+    if (err instanceof Error && err.message.includes("Too Large")) {
+      return c.json({ error: "Payload Too Large", code: "ERR_PAYLOAD_TOO_LARGE" }, 413);
+    }
+    return c.json({ error: "Invalid JSON body", code: "ERR_INVALID_BODY" }, 400);
+  }
   const now = Math.floor(Date.now() / 1000);
 
-  // Atomic Nonce Check & Burn: Prevents race condition replay
   const burnedRecord = stmtAtomicBurn.get(ticket.nonce, now) as { nonce: string } | undefined;
   if (!burnedRecord) {
     return c.json(
       { error: "Nonce expired, unknown, or replayed", code: "ERR_NONCE_REPLAY" },
       401
+    );
+  }
+
+  if (!(await isValidUpstreamMcp(payload.target_mcp))) {
+    return c.json(
+      { error: "Invalid or restricted upstream MCP target URL", code: "ERR_RESTRICTED_UPSTREAM" },
+      400
     );
   }
 
@@ -170,7 +250,6 @@ app.post("/mcp/dispatch", async (c) => {
     return c.json({ error: "Internal verification error" }, 500);
   }
 
-  // Downstream MCP RPC Forwarding with 10s Circuit-Breaker Timeout
   try {
     const downstreamResponse = await fetch(`${payload.target_mcp}/rpc`, {
       method: "POST",
@@ -199,8 +278,8 @@ app.post("/mcp/dispatch", async (c) => {
         ).toString("base64")
       }
     });
-  } catch (err: any) {
-    if (err.name === "TimeoutError") {
+  } catch (err: unknown) {
+    if (err instanceof Error && err.name === "TimeoutError") {
       return c.json({ error: "Upstream MCP timed out after 10s", code: "ERR_GATEWAY_TIMEOUT" }, 504);
     }
     return c.json({ error: "Failed to connect to upstream MCP", code: "ERR_BAD_GATEWAY" }, 502);
@@ -208,5 +287,5 @@ app.post("/mcp/dispatch", async (c) => {
 });
 
 const PORT = 3006;
-console.log(`[x401-gateway] Listening on http://localhost:${PORT}`);
-serve({ fetch: app.fetch, port: PORT });
+console.log(`[aed-gateway] Listening on http://127.0.0.1:${PORT}`);
+serve({ fetch: app.fetch, port: PORT, hostname: "127.0.0.1" });

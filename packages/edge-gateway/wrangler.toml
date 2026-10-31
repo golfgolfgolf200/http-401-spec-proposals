@@ -1,11 +1,12 @@
-name = "x401-edge-gateway"
+name = "aed-edge-gateway"
 main = "src/gateway.ts"
-compatibility_date = "2026-10-01"
+compatibility_date = "2026-10-30"
+
+routes = [
+  { pattern = "auth.401frameworks.org/*", zone_name = "401frameworks.org" }
+]
 
 [[kv_namespaces]]
 binding = "NONCE_KV"
 id = "x401_nonce_store_id"
 preview_id = "x401_nonce_preview_id"
-
-[vars]
-ENVIRONMENT = "production"

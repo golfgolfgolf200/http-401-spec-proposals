@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert";
 import { X401McpInterceptor } from "../dist/proxy.js";
 
-test("x401 Interceptor: Allows initialize and tools/list without tickets", async () => {
+test("AED Interceptor: Allows initialize and tools/list without tickets", async () => {
   const proxy = new X401McpInterceptor({ serverOrigin: "https://auth.x401.tech" });
 
   const initRes = await proxy.interceptRequest({
@@ -22,7 +22,7 @@ test("x401 Interceptor: Allows initialize and tools/list without tickets", async
   assert.strictEqual(listRes.allowed, true);
 });
 
-test("x401 Interceptor: Issues 401 challenge on unauthenticated tools/call", async () => {
+test("AED Interceptor: Issues 401 challenge on unauthenticated tools/call", async () => {
   const proxy = new X401McpInterceptor({ serverOrigin: "https://auth.x401.tech" });
 
   const callRes = await proxy.interceptRequest({
@@ -37,14 +37,20 @@ test("x401 Interceptor: Issues 401 challenge on unauthenticated tools/call", asy
 
   assert.strictEqual(callRes.allowed, false);
   assert.strictEqual(callRes.rpcResponse?.error?.code, 401);
-  assert.strictEqual(callRes.rpcResponse?.error?.data?.challenge?.schema_uri, "https://x401.tech/schemas/v1/agent-delegation-ticket.json");
+  assert.strictEqual(callRes.rpcResponse?.error?.message, "AED_AUTHENTICATION_REQUIRED");
+  assert.strictEqual(
+    callRes.rpcResponse?.error?.data?.challenge?.schema_uri,
+    "https://401frameworks.org/schemas/v1/agent-delegation-ticket.json"
+  );
+  assert.strictEqual(callRes.rpcResponse?.error?.data?.challenge?.scheme, "AED");
   assert.ok(callRes.rpcResponse?.error?.data?.challenge?.nonce);
 });
 
-test("x401 Interceptor: Rejects unissued nonces or missing tickets", async () => {
+test("AED Interceptor: Rejects unissued nonces or missing tickets", async () => {
   const proxy = new X401McpInterceptor({ serverOrigin: "https://auth.x401.tech" });
 
   const dummyTicket = {
+    aed_version: "1.0.0",
     x401_version: "1.0.0",
     ticket_id: "00000000-0000-0000-0000-000000000000",
     nonce: "non_existent_nonce_1234567890",
@@ -59,7 +65,7 @@ test("x401 Interceptor: Rejects unissued nonces or missing tickets", async () =>
     method: "tools/call",
     params: {
       name: "run_job",
-      _meta: { x401_ticket: dummyTicket }
+      _meta: { aed_ticket: dummyTicket }
     }
   });
 

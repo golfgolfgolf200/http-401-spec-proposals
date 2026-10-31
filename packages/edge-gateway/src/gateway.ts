@@ -1,7 +1,7 @@
 import { Hono } from "hono";
 import {
   verifyX401Ticket,
-  X401DelegationTicket,
+  type X401DelegationTicket,
   X401VerificationError
 } from "@x401/verifier";
 
@@ -20,7 +20,7 @@ interface ForwardBridgePayload {
 
 const app = new Hono<{ Bindings: Bindings }>();
 
-// 1. Issue challenge nonce & x401 headers
+// 1. Issue challenge nonce & AED / x401 headers
 app.get("/challenge", async (c) => {
   const nonceBytes = new Uint8Array(24);
   crypto.getRandomValues(nonceBytes);
@@ -32,7 +32,7 @@ app.get("/challenge", async (c) => {
 
   c.header(
     "WWW-Authenticate",
-    `X401 realm="mcp-gateway", challenge="${nonce}", spec="https://x401.tech/schemas/v1/agent-delegation-ticket.json"`
+    `AED realm="401frameworks.org", challenge="${nonce}", spec="https://401frameworks.org/schemas/v1/agent-delegation-ticket.json"`
   );
   c.header(
     "PROOF-REQUEST",
@@ -54,17 +54,21 @@ app.post("/mcp/dispatch", async (c) => {
   const proofResponse = c.req.header("PROOF-RESPONSE");
 
   let rawToken: string | undefined;
-  if (authHeader?.startsWith("X401 ")) {
+  if (authHeader?.startsWith("AED ")) {
+    rawToken = authHeader.slice(4).trim();
+  } else if (authHeader?.startsWith("X401 ")) {
     rawToken = authHeader.slice(5).trim();
+  } else if (authHeader?.startsWith("Bearer ")) {
+    rawToken = authHeader.slice(7).trim();
   } else if (proofResponse) {
     rawToken = proofResponse.trim();
   }
 
   if (!rawToken) {
     return c.json(
-      { error: "Missing x401 token", challenge_endpoint: "/challenge" },
+      { error: "Missing delegation token", challenge_endpoint: "/challenge" },
       401,
-      { "WWW-Authenticate": 'X401 realm="mcp-gateway"' }
+      { "WWW-Authenticate": 'AED realm="401frameworks.org"' }
     );
   }
 

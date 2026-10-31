@@ -22,9 +22,6 @@ export interface MintTicketParams {
 }
 
 export class X401Minter {
-  /**
-   * Generates a local P-256 keypair for testing or self-sovereign identity usage.
-   */
   public static async generateIdentity(did: string): Promise<MinterKeypair> {
     const keyPair = await crypto.subtle.generateKey(
       { name: "ECDSA", namedCurve: "P-256" },
@@ -44,9 +41,6 @@ export class X401Minter {
     };
   }
 
-  /**
-   * Imports a PKCS#8 PEM private key (e.g., from OpenSSL or an enterprise wallet).
-   */
   public static async importPrivateKeyFromPem(
     pem: string,
     did: string,
@@ -78,9 +72,6 @@ export class X401Minter {
     };
   }
 
-  /**
-   * Signs and formats an x401 Delegation Ticket according to RFC 8785 + ES256.
-   */
   public static async mintTicket(
     identity: MinterKeypair,
     params: MintTicketParams
@@ -88,6 +79,7 @@ export class X401Minter {
     const now = Math.floor(Date.now() / 1000);
 
     const ticketBody: Omit<X401DelegationTicket, "signature"> = {
+      aed_version: "1.0.0",
       x401_version: "1.0.0",
       ticket_id: crypto.randomUUID(),
       issuer: {
@@ -127,3 +119,5 @@ export class X401Minter {
     return { ticket, serializedToken };
   }
 }
+
+export const AEDMinter = X401Minter;

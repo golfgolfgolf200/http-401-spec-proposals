@@ -7,8 +7,8 @@ const args = process.argv.slice(2);
 const separatorIdx = args.indexOf("--");
 
 if (separatorIdx === -1 || separatorIdx === args.length - 1) {
-  console.error("Usage: x401-mcp-proxy [options] -- <command> [args...]");
-  console.error("Example: x401-mcp-proxy --server-origin https://api.mcp.local -- npx @modelcontextprotocol/server-filesystem /tmp");
+  console.error("Usage: aed-mcp-proxy [options] -- <command> [args...]");
+  console.error("Example: aed-mcp-proxy --server-origin https://api.mcp.local -- npx @modelcontextprotocol/server-filesystem /tmp");
   process.exit(1);
 }
 
@@ -40,7 +40,7 @@ const clientReader = readline.createInterface({
   terminal: false
 });
 
-clientReader.on("line", async (line) => {
+clientReader.on("line", async (line: string) => {
   const trimmed = line.trim();
   if (!trimmed) return;
 
@@ -55,7 +55,7 @@ clientReader.on("line", async (line) => {
       // Allowed: forward to actual child process
       child.stdin.write(JSON.stringify(result.sanitizedRequest) + "\n");
     }
-  } catch (err: any) {
+  } catch (err: unknown) {
     child.stdin.write(line + "\n");
   }
 });
@@ -66,10 +66,10 @@ const childReader = readline.createInterface({
   terminal: false
 });
 
-childReader.on("line", (line) => {
+childReader.on("line", (line: string) => {
   process.stdout.write(line + "\n");
 });
 
-child.on("exit", (code) => {
+child.on("exit", (code: number | null) => {
   process.exit(code ?? 0);
 });

@@ -6,7 +6,7 @@ import { JWK_EC } from "../src/index.js";
 async function main() {
   const rl = readline.createInterface({ input, output });
 
-  console.log("=== x401 Human-in-the-Loop Principal Minter ===");
+  console.log("=== AED Framework Principal Minter ===");
   const did = await rl.question("Enter Principal DID (default: did:proof:user_demo): ") || "did:proof:user_demo";
   const agentId = await rl.question("Enter Target Agent ID: ");
   const nonce = await rl.question("Enter Gateway Challenge Nonce: ");
@@ -17,7 +17,7 @@ async function main() {
   console.log("\n--> Generating temporary keys for session delegation...");
   const humanIdentity = await X401Minter.generateIdentity(did);
 
-  // Generate ephemeral agent key for testing
+  // Ephemeral agent key for testing
   const dummyAgentKey: JWK_EC = {
     kty: "EC",
     crv: "P-256",
@@ -51,7 +51,9 @@ async function main() {
   console.log("\n Delegation Ticket successfully minted and signed!");
   console.log("\n--- Full Ticket Payload ---");
   console.log(JSON.stringify(ticket, null, 2));
-  console.log("\n--- Token for HTTP Header ---");
+  console.log("\n--- Primary Authorization Header (AED Scheme) ---");
+  console.log(`Authorization: AED ${serializedToken}`);
+  console.log("\n--- Backward Compatible Header Options ---");
   console.log(`Authorization: X401 ${serializedToken}`);
   console.log(`PROOF-RESPONSE: ${serializedToken}`);
 

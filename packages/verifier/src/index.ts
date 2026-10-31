@@ -33,7 +33,8 @@ export interface TicketPermissions {
 }
 
 export interface X401DelegationTicket {
-  x401_version: "1.0.0";
+  x401_version?: "1.0.0";
+  aed_version?: "1.0.0";
   ticket_id: string;
   issuer: {
     did: string;
@@ -54,6 +55,9 @@ export interface X401DelegationTicket {
   };
 }
 
+// Canonical Aliases for AED Standard
+export type AEDDelegationTicket = X401DelegationTicket;
+
 export interface VerificationOptions {
   expectedNonce?: string;
   currentTimestamp?: number;
@@ -73,11 +77,8 @@ export class X401VerificationError extends Error {
     this.name = "X401VerificationError";
   }
 }
+export class AEDVerificationError extends X401VerificationError {}
 
-/**
- * RFC 8785: JSON Canonicalization Scheme (JCS)
- * Recursively sort dictionary keys lexicographically by UTF-16 code units.
- */
 export function canonicalizeJSON(obj: unknown): string {
   if (obj === null || typeof obj !== "object") {
     return JSON.stringify(obj);
@@ -113,10 +114,6 @@ export function uint8ArrayToBase64Url(bytes: Uint8Array): string {
   return btoa(binary).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
 }
 
-/**
- * Evaluates ticket validity against cryptographic invariants, temporal bounds,
- * operational budgets, and cross-MCP security boundaries.
- */
 export async function verifyX401Ticket(
   ticket: X401DelegationTicket,
   options: VerificationOptions = {}
@@ -137,7 +134,6 @@ export async function verifyX401Ticket(
     throw new X401VerificationError("Nonce mismatch; replay detected", "ERR_INVALID_NONCE");
   }
 
-  // Strip signature to verify canonical payload
   const { signature, ...ticketBody } = ticket;
   const canonicalBytes = new TextEncoder().encode(canonicalizeJSON(ticketBody));
 
@@ -156,7 +152,7 @@ export async function verifyX401Ticket(
       false,
       ["verify"]
     );
-  } catch (err) {
+  } catch {
     throw new X401VerificationError("Failed to parse issuer JWK", "ERR_MALFORMED_KEY");
   }
 
@@ -243,3 +239,5 @@ export async function verifyX401Ticket(
     agentId: ticket.subject_agent.agent_id
   };
 }
+
+export const verifyAEDTicket = verifyX401Ticket;

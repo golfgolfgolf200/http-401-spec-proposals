@@ -1,14 +1,15 @@
 {
   "name": "@x401/mcp-proxy",
   "version": "1.0.0",
-  "description": "Zero-trust x401 cryptographic delegation and boundary proxy for Model Context Protocol (MCP) servers",
+  "description": "Zero-trust AED cryptographic delegation and boundary proxy for Model Context Protocol (MCP) servers",
   "type": "module",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "bin": {
+    "aed-mcp-proxy": "dist/cli.js",
     "x401-mcp-proxy": "dist/cli.js"
   },
-  "author": "Josh Hart <contact@x401.tech>",
+  "author": "Josh Hart <contact@401frameworks.org>",
   "license": "Apache-2.0",
   "scripts": {
     "build": "tsc",

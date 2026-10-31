@@ -19,21 +19,22 @@ app.get("/schemas/v1/agent-delegation-ticket.json", (c) => {
   });
 });
 
-// 2. Main Portal Homepage with Full Architectural Matrix & Upgrades
+// 2. Main Portal Homepage with Centered Header & HTTP 401 Challenge Context
 app.get("/", (c) => {
   return c.html(`<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>x401 Protocol | Cryptographic Agent Delegation Standard</title>
+  <title>AED Framework | Agent Execution & Delegation Standard</title>
   <style>
     body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #080c14; color: #e2e8f0; margin: 0; padding: 48px 24px; line-height: 1.6; }
     .container { max-width: 900px; margin: 0 auto; }
-    h1 { color: #38bdf8; font-size: 2.6rem; margin-bottom: 0.3rem; letter-spacing: -0.02em; }
-    .author-tag { color: #94a3b8; font-size: 0.95rem; margin-bottom: 1.2rem; }
+    .hero { text-align: center; margin-bottom: 32px; }
+    h1 { color: #38bdf8; font-size: 2.6rem; margin-bottom: 0.4rem; letter-spacing: -0.02em; }
+    .author-tag { color: #94a3b8; font-size: 0.95rem; margin-bottom: 1.4rem; }
     .badge { display: inline-block; background: #1e293b; color: #38bdf8; border: 1px solid #334155; padding: 4px 10px; border-radius: 6px; font-size: 0.85rem; font-family: monospace; }
-    .desc { font-size: 1.15rem; color: #cbd5e1; margin: 20px 0 28px 0; }
+    .desc { font-size: 1.15rem; color: #cbd5e1; margin: 20px auto; max-width: 820px; text-align: left; }
     .card { background: #0f172a; border: 1px solid #1e293b; border-radius: 12px; padding: 26px; margin-top: 24px; }
     .card h3 { margin-top: 0; color: #f8fafc; font-size: 1.3rem; }
     ul { padding-left: 20px; margin-bottom: 0; }
@@ -56,14 +57,17 @@ app.get("/", (c) => {
 </head>
 <body>
   <div class="container">
-    <h1>x401 Protocol</h1>
-    <div class="author-tag">An open standard authored by <strong>Josh Hart</strong> &bull; <span class="badge">RFC-x401-01</span></div>
-    <p class="desc">A zero-trust cryptographic authorization and boundary control standard for autonomous Model Context Protocol (MCP) agents, enforcing human-signed per-action budgets, tool allowlists, and cross-server confinement without centralized state.</p>
+    <div class="hero">
+      <h1>AED (Agent Execution & Delegation) Framework</h1>
+      <div class="author-tag">An open standard authored by <strong>Josh Hart</strong> &bull; <span class="badge">RFC-401-01</span></div>
+    </div>
+    
+    <p class="desc">A zero-trust cryptographic authorization and boundary control standard for autonomous Model Context Protocol (MCP) agents. Built natively on the standard <code>HTTP 401 Unauthorized</code> challenge-response mechanism, AED intercepts unauthenticated actions with cryptographic challenge nonces—enforcing human-signed per-action budgets, tool allowlists, and cross-server confinement without centralized state.</p>
     
     <div class="card">
       <h3>Specification & Engineering Resources</h3>
       <ul>
-        <li><a href="/rfc/x401-01">Read Formal Specification: RFC-x401-01 (v1.0.0)</a></li>
+        <li><a href="/rfc/x401-01">Read Formal Proposed Specification: RFC-401-01 (v1.0.0)</a></li>
         <li><a href="/schemas/v1/agent-delegation-ticket.json">Canonical JSON Schema (Draft 2020-12)</a></li>
         <li><a href="/debugger">Interactive Delegation Ticket Debugger & Inspector</a></li>
         <li>Live Challenge Gateway: <code>https://auth.x401.tech/challenge</code></li>
@@ -71,15 +75,15 @@ app.get("/", (c) => {
     </div>
 
     <div class="card">
-      <h3>Ecosystem Context: Proof x401 vs. RFC-x401-01</h3>
-      <p>The <code>x401</code> protocol was pioneered by <a href="https://x401.proof.com/" target="_blank" rel="noreferrer">Proof</a> to establish human legal identity behind AI agents via OpenID4VP and Digital Credentials. <strong>RFC-x401-01 (AED)</strong> formalizes the operational execution layer—transforming the identity handshake into an enforceable zero-trust permission envelope for Model Context Protocol (MCP) servers and autonomous runtimes.</p>
+      <h3>Ecosystem Context: Proof x401 vs. RFC-401-01</h3>
+      <p>The <code>x401</code> protocol was pioneered by <a href="https://x401.proof.com/" target="_blank" rel="noreferrer">Proof</a> to establish human legal identity behind AI agents via OpenID4VP and Digital Credentials. <strong>RFC-401-01 (AED: Agent Execution & Delegation)</strong> formalizes the operational execution layer—transforming the <code>HTTP 401</code> identity handshake into an enforceable zero-trust permission envelope for Model Context Protocol (MCP) servers and autonomous runtimes.</p>
       
       <table>
         <thead>
           <tr>
             <th>Protocol Vector</th>
             <th>Proof Baseline (x401.proof.com)</th>
-            <th>RFC-x401-01 (AED)</th>
+            <th>RFC-401-01 (AED: Agent Execution & Delegation)</th>
           </tr>
         </thead>
         <tbody>
@@ -92,6 +96,11 @@ app.get("/", (c) => {
             <td><strong>Identity Mechanism</strong></td>
             <td>OpenID4VP, W3C Verifiable Credentials (IAL2)</td>
             <td>Decentralized Identifiers (DIDs) & ECDSA P-256 (ES256) JWKs</td>
+          </tr>
+          <tr>
+            <td><strong>Wire Protocol</strong></td>
+            <td>HTTP 401 Challenge with URI match</td>
+            <td>HTTP 401 Challenge with ephemeral single-use nonces and <code>WWW-Authenticate: AED</code></td>
           </tr>
           <tr>
             <td><strong>Canonicalization</strong></td>
@@ -118,8 +127,8 @@ app.get("/", (c) => {
     </div>
 
     <div class="card">
-      <h3>Architecture Upgrades Enabled by RFC-x401-01 (AED)</h3>
-      <p>Conforming servers and agents implementing RFC-x401-01 benefit from six foundational architectural capabilities:</p>
+      <h3>Architecture Upgrades Enabled by RFC-401-01 (AED: Agent Execution & Delegation)</h3>
+      <p>Conforming servers and agents implementing RFC-401-01 benefit from six foundational architectural capabilities:</p>
       
       <div class="grid">
         <div class="subcard">
@@ -160,7 +169,7 @@ app.get("/rfc/x401-01", (c) => {
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>RFC-x401-01: Agent Action Delegation & Boundary Control Protocol</title>
+  <title>RFC-401-01: Agent Action Delegation & Boundary Control Protocol</title>
   <style>
     body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #080c14; color: #e2e8f0; margin: 0; padding: 48px 24px; line-height: 1.6; }
     .container { max-width: 860px; margin: 0 auto; }
@@ -175,32 +184,32 @@ app.get("/rfc/x401-01", (c) => {
 </head>
 <body>
   <div class="container">
-    <p><a href="/">&larr; Back to x401 Home</a></p>
-    <h1>RFC-x401-01: Agent Action Delegation Protocol</h1>
+    <p><a href="/">&larr; Back to Home</a></p>
+    <h1>RFC-401-01: Agent Action Delegation Protocol</h1>
     <div class="meta-box">
       <div><strong>Author:</strong> Josh Hart</div>
-      <div><strong>Contact:</strong> <code>contact@x401.tech</code></div>
+      <div><strong>Contact:</strong> <code>contact@401frameworks.org</code></div>
       <div><strong>Status:</strong> Proposed Standard</div>
       <div><strong>Category:</strong> Standards Track / HTTP Extension</div>
       <div><strong>Prior Art:</strong> <a href="https://x401.proof.com/" target="_blank" rel="noreferrer">Proof x401 HTTP Proof Requirement Protocol</a></div>
-      <div><strong>Canonical Schema:</strong> <code>https://x401.tech/schemas/v1/agent-delegation-ticket.json</code></div>
+      <div><strong>Canonical Schema:</strong> <code>https://401frameworks.org/schemas/v1/agent-delegation-ticket.json</code></div>
     </div>
 
     <h2>1. Abstract</h2>
-    <p>The x401 protocol standardizes HTTP-layer authorization challenges for autonomous agents. While baseline specifications focus on presenting verified legal credentials via OpenID4VP, this extension standardizes the <strong>Delegation Ticket</strong> contract. It provides programmatic constraints for tool allowlists, per-action spend limits, and cross-MCP transfer boundaries using P-256 ECDSA and RFC 8785 JSON Canonicalization.</p>
+    <p>The AED (Agent Execution & Delegation) Framework standardizes zero-trust delegation over HTTP 401 challenges. While baseline specifications focus on presenting verified legal credentials via OpenID4VP, this extension standardizes the <strong>Delegation Ticket</strong> contract. It provides programmatic constraints for tool allowlists, per-action spend limits, and cross-MCP transfer boundaries using P-256 ECDSA and RFC 8785 JSON Canonicalization.</p>
 
     <h2>2. HTTP Wire Mechanics</h2>
     <pre>
-Client (Agent)                Edge Gateway (Hono/Cloudflare)            Target MCP Server
+Client (Agent)                Edge Gateway (AED Framework)               Target MCP Server
 |                                     |                                   |
 | ---- 1. GET/POST /mcp/dispatch ---> |                                   |
 | &lt;--- 2. HTTP 401 Unauthorized ----- |                                   |
-|      WWW-Authenticate: X401 ...     |                                   |
+|      WWW-Authenticate: AED ...      |                                   |
 |      PROOF-REQUEST: &lt;...&gt;           |                                   |
 |                                     |                                   |
 | [Agent invokes Human Signer]        |                                   |
 | ---- 3. POST /mcp/dispatch -------&gt; |                                   |
-|      Authorization: X401 &lt;ticket&gt;   |                                   |
+|      Authorization: AED &lt;ticket&gt;    |                                   |
 |                                     | -- 4. Verify &amp; Invalidate Nonce - |
 |                                     | ---- 5. Forward RPC Call -------&gt; |
 |                                     | &lt;--- 6. RPC Result -------------- |
@@ -227,7 +236,7 @@ app.get("/debugger", (c) => {
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>x401 Ticket Inspector & Debugger</title>
+  <title>AED Ticket Inspector & Debugger</title>
   <style>
     body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #080c14; color: #e2e8f0; margin: 0; padding: 48px 24px; }
     .container { max-width: 900px; margin: 0 auto; }
@@ -244,10 +253,10 @@ app.get("/debugger", (c) => {
 </head>
 <body>
   <div class="container">
-    <p><a href="/">&larr; Back to x401 Home</a></p>
-    <h1>x401 Ticket Debugger</h1>
-    <div class="subtitle">Decode, inspect, and validate x401 agent delegation tokens in real-time.</div>
-    <textarea id="tokenInput" placeholder="Paste Authorization: X401 <token> or raw Base64URL string here..."></textarea>
+    <p><a href="/">&larr; Back to Home</a></p>
+    <h1>AED Ticket Debugger</h1>
+    <div class="subtitle">Decode, inspect, and validate AED agent delegation tokens in real-time.</div>
+    <textarea id="tokenInput" placeholder="Paste Authorization: AED <token>, X401 <token>, or raw Base64URL string here..."></textarea>
     <div id="statusBox" class="status invalid" style="display:none;"></div>
     <h3>Decoded Claims & Constraints</h3>
     <pre id="jsonOutput">// Decoded ticket JSON will appear here...</pre>
@@ -260,8 +269,10 @@ app.get("/debugger", (c) => {
     function parseToken(raw) {
       try {
         let clean = raw.trim();
+        if (clean.startsWith("Authorization: AED ")) clean = clean.slice(19).trim();
         if (clean.startsWith("Authorization: X401 ")) clean = clean.slice(20).trim();
         if (clean.startsWith("PROOF-RESPONSE: ")) clean = clean.slice(16).trim();
+        if (clean.startsWith("AED ")) clean = clean.slice(4).trim();
         if (clean.startsWith("X401 ")) clean = clean.slice(5).trim();
         if (!clean) {
           output.textContent = "// Awaiting input...";

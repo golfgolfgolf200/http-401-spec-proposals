@@ -1,4 +1,4 @@
-import test from "node:test";
+import test, { type TestContext } from "node:test";
 import assert from "node:assert/strict";
 import {
   verifyX401Ticket,
@@ -31,12 +31,13 @@ async function signTicketBody(
   return uint8ArrayToBase64Url(new Uint8Array(rawSignature));
 }
 
-test("x401 Verifier Suite", async (t) => {
+test("x401 Verifier Suite", async (t: TestContext) => {
   const issuerKeys = await generateTestKeypair();
   const agentKeys = await generateTestKeypair();
   const now = 1793232000;
 
   const validBasePayload: Omit<X401DelegationTicket, "signature"> = {
+    aed_version: "1.0.0",
     x401_version: "1.0.0",
     ticket_id: "7d0d0fca-b605-4c07-b3b3-21c62f2c8d23",
     issuer: {
@@ -104,7 +105,7 @@ test("x401 Verifier Suite", async (t) => {
   await t.test("rejects tampered canonical payload", async () => {
     const signature = await signTicketBody(validBasePayload, issuerKeys.privateKey);
     const tamperedPayload = JSON.parse(JSON.stringify(validBasePayload));
-    tamperedPayload.permissions.budget.max_session_spend = 999999.0; // Tampering budget
+    tamperedPayload.permissions.budget.max_session_spend = 999999.0;
 
     const ticket: X401DelegationTicket = {
       ...tamperedPayload,
@@ -124,13 +125,11 @@ test("x401 Verifier Suite", async (t) => {
       signature: { algorithm: "ES256", value: signature }
     };
 
-    // Past expiration
     await assert.rejects(
       async () => verifyX401Ticket(ticket, { currentTimestamp: now + 4000 }),
       { code: "ERR_EXPIRED" }
     );
 
-    // Clock skew: current time prior to issued_at - 60s
     await assert.rejects(
       async () => verifyX401Ticket(ticket, { currentTimestamp: now - 120 }),
       { code: "ERR_NOT_YET_VALID" }
@@ -148,7 +147,7 @@ test("x401 Verifier Suite", async (t) => {
       async () =>
         verifyX401Ticket(ticket, {
           currentTimestamp: now + 10,
-          spendAmount: 15.0 // Exceeds per_action_limit of 10.0
+          spendAmount: 15.0
         }),
       { code: "ERR_PER_ACTION_BUDGET_EXCEEDED" }
     );
@@ -161,7 +160,6 @@ test("x401 Verifier Suite", async (t) => {
       signature: { algorithm: "ES256", value: signature }
     };
 
-    // Denied action
     await assert.rejects(
       async () =>
         verifyX401Ticket(ticket, {
@@ -172,7 +170,6 @@ test("x401 Verifier Suite", async (t) => {
       { code: "ERR_ACTION_DENIED" }
     );
 
-    // Unauthorized action
     await assert.rejects(
       async () =>
         verifyX401Ticket(ticket, {
@@ -191,7 +188,6 @@ test("x401 Verifier Suite", async (t) => {
       signature: { algorithm: "ES256", value: signature }
     };
 
-    // Unauthorized target endpoint
     await assert.rejects(
       async () =>
         verifyX401Ticket(ticket, {
@@ -204,7 +200,6 @@ test("x401 Verifier Suite", async (t) => {
       { code: "ERR_CROSS_MCP_VIOLATION" }
     );
 
-    // Unauthorized artifact type
     await assert.rejects(
       async () =>
         verifyX401Ticket(ticket, {
