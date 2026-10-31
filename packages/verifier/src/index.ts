@@ -55,7 +55,6 @@ export interface X401DelegationTicket {
   };
 }
 
-// Canonical Aliases for AED Standard
 export type AEDDelegationTicket = X401DelegationTicket;
 
 export interface VerificationOptions {
