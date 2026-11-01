@@ -106,3 +106,4 @@ packages/verifier/tsconfig.build.json
 *.log
 
 *.log
+wrangler.jsonc

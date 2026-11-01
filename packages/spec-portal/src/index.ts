@@ -3,7 +3,12 @@ import { cors } from "hono/cors";
 import schemaV1 from "./assets/agent-delegation-ticket.json";
 import schemaV2 from "./assets/agent-delegation-ticket-v2.json";
 
-const app = new Hono();
+interface Bindings {
+  GISCUS_REPO_ID?: string;
+  GISCUS_CATEGORY_ID?: string;
+}
+
+const app = new Hono<{ Bindings: Bindings }>();
 
 app.use("*", cors({
   origin: "*",
@@ -27,6 +32,32 @@ app.get("/schemas/v2/agent-delegation-ticket.json", (c) => {
     "Cache-Control": "public, max-age=86400, stale-while-revalidate=604800"
   });
 });
+
+// Giscus Discussion Section Component using injected runtime variables
+const getGiscusSection = (repoId: string, categoryId: string) => `
+  <div class="card" style="margin-top: 36px; text-align: left;">
+    <h3>Specification Feedback & Technical Comments</h3>
+    <p style="color: #94a3b8; font-size: 0.95rem; margin-bottom: 20px;">
+      Comments are scoped to technical reviews, cryptographic edge cases, and architectural errata for RFC-x401-02. Sign in with GitHub to participate.
+    </p>
+    <div class="giscus"></div>
+  </div>
+  <script src="https://giscus.app/client.js"
+          data-repo="golfgolfgolf200/http-401-spec-proposals"
+          data-repo-id="${repoId}"
+          data-category="General"
+          data-category-id="${categoryId}"
+          data-mapping="pathname"
+          data-strict="1"
+          data-reactions-enabled="1"
+          data-emit-metadata="0"
+          data-input-position="top"
+          data-theme="dark_dimmed"
+          data-lang="en"
+          crossorigin="anonymous"
+          async>
+  </script>
+`;
 
 // Shared Head & CSS Stylesheet mirroring x401.tech
 const headStyles = `
@@ -67,6 +98,9 @@ const headStyles = `
 
 // --- 1. Homepage ---
 app.get("/", (c) => {
+  const repoId = c.env.GISCUS_REPO_ID || "PLACEHOLDER_REPO_ID";
+  const categoryId = c.env.GISCUS_CATEGORY_ID || "PLACEHOLDER_CATEGORY_ID";
+
   return c.html(`<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -226,6 +260,8 @@ app.get("/", (c) => {
         </p>
       </div>
     </div>
+
+    ${getGiscusSection(repoId, categoryId)}
   </div>
 </body>
 </html>`);
@@ -337,6 +373,9 @@ app.get("/architecture", (c) => {
 
 // --- 3. RFC-x401-02 Specification Page ---
 app.get("/rfc/x401-02", (c) => {
+  const repoId = c.env.GISCUS_REPO_ID || "PLACEHOLDER_REPO_ID";
+  const categoryId = c.env.GISCUS_CATEGORY_ID || "PLACEHOLDER_CATEGORY_ID";
+
   return c.html(`<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -401,6 +440,8 @@ app.get("/rfc/x401-02", (c) => {
     <pre>canonicalization_target: "mcp_tool_arguments"</pre>
     <p>And compute the commitment as:</p>
     <pre>call_commitment = SHA-256(JCS(params.arguments))</pre>
+
+    ${getGiscusSection(repoId, categoryId)}
   </div>
 </body>
 </html>`);
